@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.gmail.friedmanjonny.time2run",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to provide weather-based run scheduling.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to provide weather-based run scheduling."
       }
     },
     "android": {
@@ -21,7 +23,13 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.gmail.friedmanjonny.time2run"
+      "package": "com.gmail.friedmanjonny.time2run",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -38,7 +46,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow time2run to use your location to provide weather-based run scheduling."
+        }
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
