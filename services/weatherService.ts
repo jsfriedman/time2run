@@ -1,11 +1,20 @@
 import { Location, WeatherData } from '../types/preferences';
 
 export class WeatherService {
-  private readonly API_KEY = 'YOUR_WEATHER_API_KEY'; // This should be stored in environment variables
-  private readonly BASE_URL = 'http://api.weatherapi.com/v1';
+  private readonly BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 
   async getWeatherForecast(location: Location): Promise<WeatherData> {
-    const url = `${this.BASE_URL}/forecast.json?key=${this.API_KEY}&q=${location.latitude},${location.longitude}&days=1&hour=1`;
+    // Open-Meteo API parameters for 1-day forecast with hourly temperature data
+    const params = new URLSearchParams({
+      latitude: location.latitude.toString(),
+      longitude: location.longitude.toString(),
+      hourly: 'temperature_2m',
+      forecast_days: '1',
+      temperature_unit: 'fahrenheit', // Use Fahrenheit for consistency
+      timezone: 'auto'
+    });
+
+    const url = `${this.BASE_URL}?${params.toString()}`;
     
     try {
       const response = await fetch(url, {
@@ -21,16 +30,10 @@ export class WeatherService {
 
       const data = await response.json();
       
-      // Transform the API response to our WeatherData format
-      // For testing, we'll return the data as-is if it already has the hourly format
-      if (data.hourly && Array.isArray(data.hourly)) {
-        return data;
-      }
-      
-      // Otherwise, transform from the actual API format
-      const hourly = data.forecast?.forecastday?.[0]?.hour?.map((hour: any) => ({
-        time: hour.time,
-        temperature: hour.temp_f
+      // Transform Open-Meteo API response to our WeatherData format
+      const hourly = data.hourly?.time?.map((time: string, index: number) => ({
+        time: time,
+        temperature: data.hourly.temperature_2m[index]
       })) || [];
 
       return { hourly };

@@ -21,11 +21,12 @@ describe('WeatherService', () => {
   describe('getWeatherForecast', () => {
     it('should fetch weather data successfully', async () => {
       const mockWeatherData = {
-        hourly: [
-          { time: '2024-06-15T06:00:00', temperature: 65 },
-          { time: '2024-06-15T07:00:00', temperature: 68 },
-          { time: '2024-06-15T08:00:00', temperature: 72 }
-        ]
+        latitude: 40.7128,
+        longitude: -74.0060,
+        hourly: {
+          time: ['2024-06-15T06:00', '2024-06-15T07:00', '2024-06-15T08:00'],
+          temperature_2m: [65, 68, 72]
+        }
       };
 
       (fetch as jest.Mock).mockResolvedValueOnce({
@@ -36,7 +37,7 @@ describe('WeatherService', () => {
       const result = await weatherService.getWeatherForecast(mockLocation);
 
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining('forecast.json'),
+        expect.stringContaining('api.open-meteo.com/v1/forecast'),
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -44,7 +45,13 @@ describe('WeatherService', () => {
           })
         })
       );
-      expect(result).toEqual(mockWeatherData);
+      
+      // Check that the response is transformed correctly
+      expect(result.hourly).toEqual([
+        { time: '2024-06-15T06:00', temperature: 65 },
+        { time: '2024-06-15T07:00', temperature: 68 },
+        { time: '2024-06-15T08:00', temperature: 72 }
+      ]);
     });
 
     it('should handle API errors', async () => {
@@ -68,7 +75,7 @@ describe('WeatherService', () => {
     it('should include correct query parameters', async () => {
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ hourly: [] })
+        json: async () => ({ hourly: { time: [], temperature_2m: [] } })
       });
 
       await weatherService.getWeatherForecast(mockLocation);
@@ -76,9 +83,12 @@ describe('WeatherService', () => {
       const callArgs = (fetch as jest.Mock).mock.calls[0];
       const url = callArgs[0];
       
-      expect(url).toContain(`q=${mockLocation.latitude},${mockLocation.longitude}`);
-      expect(url).toContain('days=1');
-      expect(url).toContain('hour=1');
+      expect(url).toContain(`latitude=${mockLocation.latitude}`);
+      expect(url).toContain(`longitude=${mockLocation.longitude}`);
+      expect(url).toContain('hourly=temperature_2m');
+      expect(url).toContain('forecast_days=1');
+      expect(url).toContain('temperature_unit=fahrenheit');
+      expect(url).toContain('timezone=auto');
     });
   });
 
@@ -92,12 +102,14 @@ describe('WeatherService', () => {
               longitude: -74.0060
             }
           });
-        })
+        }),
+        clearWatch: jest.fn(),
+        watchPosition: jest.fn()
       };
 
       global.navigator = {
         ...global.navigator,
-        geolocation: mockGeolocation
+        geolocation: mockGeolocation as any
       };
 
       const result = await weatherService.getCurrentLocation();
@@ -113,12 +125,14 @@ describe('WeatherService', () => {
       const mockGeolocation = {
         getCurrentPosition: jest.fn().mockImplementation((success, error) => {
           error(new Error('Permission denied'));
-        })
+        }),
+        clearWatch: jest.fn(),
+        watchPosition: jest.fn()
       };
 
       global.navigator = {
         ...global.navigator,
-        geolocation: mockGeolocation
+        geolocation: mockGeolocation as any
       };
 
       await expect(weatherService.getCurrentLocation())
