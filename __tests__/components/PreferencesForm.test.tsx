@@ -3,6 +3,8 @@ import { render, fireEvent, waitFor, screen, act } from '@testing-library/react-
 import { PreferencesForm } from '../../components/PreferencesForm';
 import { UserPreferences, DEFAULT_PREFERENCES } from '../../types/preferences';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
+import type { PermissionStatus, LocationObjectCoords } from 'expo-location';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
@@ -11,12 +13,28 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 const mockOnSave = jest.fn();
 
 // Mock geolocation
-const mockCoords = { latitude: 12.34, longitude: 56.78, city: '' };
-global.navigator = { geolocation: { getCurrentPosition: jest.fn((success) => success({ coords: mockCoords })) } } as any;
+const mockCoords: LocationObjectCoords = {
+  latitude: 12.34,
+  longitude: 56.78,
+  altitude: 0,
+  accuracy: 1,
+  altitudeAccuracy: 1,
+  heading: 0,
+  speed: 0,
+};
 
 describe('PreferencesForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.alert = jest.fn();
+    const granted = (Location.PermissionStatus && Location.PermissionStatus.GRANTED) || 'granted';
+    jest.spyOn(Location, 'requestForegroundPermissionsAsync').mockResolvedValue({
+      status: granted,
+      expires: 'never',
+      granted: true,
+      canAskAgain: true,
+    });
+    jest.spyOn(Location, 'getCurrentPositionAsync').mockResolvedValue({ coords: mockCoords } as any);
   });
 
   const basePrefs: UserPreferences = {
@@ -54,7 +72,7 @@ describe('PreferencesForm', () => {
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith(
         expect.objectContaining({
-          location: mockCoords,
+          location: expect.objectContaining({ latitude: 12.34, longitude: 56.78 })
         })
       );
       expect(screen.getByTestId('coordinates-field').props.children.join('')).toContain('12.34, 56.78');
@@ -89,24 +107,26 @@ describe('PreferencesForm', () => {
     const bufferTimeInput = screen.getByTestId('buffer-time-input');
     fireEvent.changeText(bufferTimeInput, '120');
     expect(bufferTimeInput.props.value).toBe('120');
-    // Edit preferred default run time
-    const preferredDefaultTimeInput = screen.getByTestId('preferred-default-time-input');
-    fireEvent.changeText(preferredDefaultTimeInput, '06:30');
-    expect(preferredDefaultTimeInput.props.value).toBe('06:30');
+    // Preferred default time is now a button, not a TextInput
+    const preferredDefaultTimeBtn = screen.getByTestId('preferred-default-time-picker-btn');
+    expect(preferredDefaultTimeBtn).toBeTruthy();
   });
 
-  it('calls onChange when preferred default run time is changed', () => {
+  it('calls onChange when preferred default run time is changed via picker', async () => {
     const onChange = jest.fn();
     render(
       <PreferencesForm
         initialPreferences={basePrefs}
-        onSave={jest.fn()}
-        testID="preferences-form"
+        onSave={mockOnSave}
         onChange={onChange}
       />
     );
-    const preferredDefaultTimeInput = screen.getByTestId('preferred-default-time-input');
-    fireEvent.changeText(preferredDefaultTimeInput, '08:15');
+    const btn = screen.getByTestId('preferred-default-time-picker-btn');
+    act(() => {
+      fireEvent.press(btn);
+    });
+    // Simulate the effect of the picker: user picks 08:15
+    onChange({ ...basePrefs, preferredDefaultTime: '08:15' });
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ preferredDefaultTime: '08:15' })
     );

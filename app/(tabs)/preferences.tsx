@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Alert } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PreferencesForm } from '../../components/PreferencesForm';
 import { PreferencesContext } from '../../components/PreferencesContext';
@@ -37,11 +37,13 @@ export default function PreferencesScreen() {
     };
   }, [unsaved, router]);
 
+  // Only update local state on change, not global state
   const handleChange = (newPrefs: typeof preferences) => {
     setLocalPrefs(newPrefs);
     setUnsaved(JSON.stringify(newPrefs) !== JSON.stringify(preferences));
   };
 
+  // Only update global state on save
   const handleSave = async (prefs: typeof preferences) => {
     setPreferences(prefs);
     await refreshAlarms();

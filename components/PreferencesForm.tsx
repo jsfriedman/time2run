@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserPreferences, DEFAULT_PREFERENCES } from '../types/preferences';
+import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export interface PreferencesFormProps {
   initialPreferences: UserPreferences;
@@ -14,6 +16,7 @@ export interface PreferencesFormProps {
 export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPreferences, onSave, testID, onChange }) => {
   const [prefs, setPrefs] = useState<UserPreferences>(initialPreferences || DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     if (initialPreferences) setPrefs(initialPreferences);
@@ -32,22 +35,39 @@ export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPrefere
     });
   };
 
-  const handleLocateMe = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((position) => {
+  const handleLocateMe = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Permission to access location was denied');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
       setPrefs((prev) => {
         const updated = {
           ...prev,
           location: {
             ...prev.location,
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
           },
         };
         if (onChange) onChange(updated);
         return updated;
       });
-    });
+    } catch (e) {
+      alert('Failed to get location. Please try again.');
+    }
+  };
+
+  const handleTimeChange = (event: any, selectedDate?: Date) => {
+    setShowTimePicker(false);
+    if (selectedDate) {
+      const hours = selectedDate.getHours();
+      const minutes = selectedDate.getMinutes();
+      const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      handleChange('preferredDefaultTime', formatted);
+    }
   };
 
   const handleSave = async () => {
@@ -106,14 +126,25 @@ export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPrefere
           style={styles.input}
         />
         <Text style={styles.label}>Preferred Default Run Time (HH:MM)</Text>
-        <TextInput
-          testID="preferred-default-time-input"
-          accessibilityLabel="Preferred Default Run Time"
-          value={prefs.preferredDefaultTime}
-          onChangeText={(v) => handleChange('preferredDefaultTime', v)}
-          keyboardType="default"
-          style={styles.input}
+        <Button
+          testID="preferred-default-time-picker-btn"
+          title={prefs.preferredDefaultTime || 'Set Time'}
+          onPress={() => setShowTimePicker(true)}
         />
+        {showTimePicker && (
+          <DateTimePicker
+            value={(() => {
+              const [h, m] = (prefs.preferredDefaultTime || '07:00').split(':').map(Number);
+              const d = new Date();
+              d.setHours(h, m, 0, 0);
+              return d;
+            })()}
+            mode="time"
+            is24Hour={true}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleTimeChange}
+          />
+        )}
         <Text style={styles.label}>Coordinates</Text>
         <Text testID="coordinates-field" style={styles.input} selectable>
           {prefs.location.latitude}, {prefs.location.longitude}
