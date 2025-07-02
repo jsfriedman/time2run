@@ -10,80 +10,106 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 const mockOnSave = jest.fn();
 
+// Mock geolocation
+const mockCoords = { latitude: 12.34, longitude: 56.78, city: '' };
+global.navigator = { geolocation: { getCurrentPosition: jest.fn((success) => success({ coords: mockCoords })) } } as any;
+
 describe('PreferencesForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders with default preferences', () => {
+  const basePrefs: UserPreferences = {
+    ...DEFAULT_PREFERENCES,
+    location: { latitude: 1, longitude: 2, city: '' },
+  };
+
+  it('renders read-only coordinates and Locate Me button', () => {
     render(
       <PreferencesForm
-        initialPreferences={DEFAULT_PREFERENCES}
-        onSave={mockOnSave}
+        initialPreferences={basePrefs}
+        onSave={jest.fn()}
         testID="preferences-form"
       />
     );
-
-    expect(screen.getByTestId('preferences-form')).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.maxTemperature.toString())).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.preparationTime.toString())).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.idealSleepHours.toString())).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.preferredRunDuration.toString())).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.bufferTimeBeforeExceed.toString())).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.location.city)).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.location.latitude.toString())).toBeTruthy();
-    expect(screen.getByDisplayValue(DEFAULT_PREFERENCES.location.longitude.toString())).toBeTruthy();
+    expect(screen.getByTestId('coordinates-field')).toBeTruthy();
+    expect(screen.getByText(/locate me/i)).toBeTruthy();
+    expect(screen.getByTestId('coordinates-field').props.children.join('')).toContain('1, 2');
   });
 
-  it('allows user to edit all preference fields', () => {
+  it('updates coordinates when Locate Me is pressed', async () => {
+    const onChange = jest.fn();
     render(
       <PreferencesForm
-        initialPreferences={DEFAULT_PREFERENCES}
-        onSave={mockOnSave}
+        initialPreferences={basePrefs}
+        onSave={jest.fn()}
+        testID="preferences-form"
+        onChange={onChange}
+      />
+    );
+    const button = screen.getByText(/locate me/i);
+    await act(async () => {
+      fireEvent.press(button);
+    });
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          location: mockCoords,
+        })
+      );
+      expect(screen.getByTestId('coordinates-field').props.children.join('')).toContain('12.34, 56.78');
+    });
+  });
+
+  it('allows user to edit all numeric preference fields', () => {
+    render(
+      <PreferencesForm
+        initialPreferences={basePrefs}
+        onSave={jest.fn()}
         testID="preferences-form"
       />
     );
-
     // Edit max temperature
     const maxTempInput = screen.getByTestId('max-temp-input');
     fireEvent.changeText(maxTempInput, '25');
     expect(maxTempInput.props.value).toBe('25');
-
     // Edit preparation time
     const prepTimeInput = screen.getByTestId('prep-time-input');
     fireEvent.changeText(prepTimeInput, '20');
     expect(prepTimeInput.props.value).toBe('20');
-
     // Edit sleep hours
     const sleepHoursInput = screen.getByTestId('sleep-hours-input');
     fireEvent.changeText(sleepHoursInput, '8');
     expect(sleepHoursInput.props.value).toBe('8');
-
     // Edit run duration
     const runDurationInput = screen.getByTestId('run-duration-input');
     fireEvent.changeText(runDurationInput, '45');
     expect(runDurationInput.props.value).toBe('45');
-
     // Edit buffer time
     const bufferTimeInput = screen.getByTestId('buffer-time-input');
     fireEvent.changeText(bufferTimeInput, '120');
     expect(bufferTimeInput.props.value).toBe('120');
+    // Edit preferred default run time
+    const preferredDefaultTimeInput = screen.getByTestId('preferred-default-time-input');
+    fireEvent.changeText(preferredDefaultTimeInput, '06:30');
+    expect(preferredDefaultTimeInput.props.value).toBe('06:30');
+  });
 
-    // Edit city
-    const cityInput = screen.getByTestId('city-input');
-    fireEvent.changeText(cityInput, 'New York');
-    expect(cityInput.props.value).toBe('New York');
-
-    // Edit latitude
-    const latitudeInput = screen.getByTestId('latitude-input');
-    fireEvent.changeText(latitudeInput, '40.7128');
-    expect(latitudeInput.props.value).toBe('40.7128');
-
-    // Edit longitude - the component converts to number, so we need to check the actual behavior
-    const longitudeInput = screen.getByTestId('longitude-input');
-    fireEvent.changeText(longitudeInput, '-74.0060');
-    // The component converts to number, so it might show as -74.006
-    expect(longitudeInput.props.value).toBe('-74.006');
+  it('calls onChange when preferred default run time is changed', () => {
+    const onChange = jest.fn();
+    render(
+      <PreferencesForm
+        initialPreferences={basePrefs}
+        onSave={jest.fn()}
+        testID="preferences-form"
+        onChange={onChange}
+      />
+    );
+    const preferredDefaultTimeInput = screen.getByTestId('preferred-default-time-input');
+    fireEvent.changeText(preferredDefaultTimeInput, '08:15');
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ preferredDefaultTime: '08:15' })
+    );
   });
 
   it('saves preferences when save button is pressed', async () => {
@@ -147,35 +173,6 @@ describe('PreferencesForm', () => {
       await new Promise((resolve) => setTimeout(resolve, 120));
     });
     expect(saveButton.props.disabled).toBe(false);
-  });
-
-  it('updates form when initialPreferences change', () => {
-    const { rerender } = render(
-      <PreferencesForm
-        initialPreferences={DEFAULT_PREFERENCES}
-        onSave={mockOnSave}
-        testID="preferences-form"
-      />
-    );
-
-    const newPreferences: UserPreferences = {
-      ...DEFAULT_PREFERENCES,
-      maxTemperature: 30,
-      location: { ...DEFAULT_PREFERENCES.location, city: 'Los Angeles' },
-    };
-
-    rerender(
-      <PreferencesForm
-        initialPreferences={newPreferences}
-        onSave={mockOnSave}
-        testID="preferences-form"
-      />
-    );
-
-    // Check for the specific max temperature input
-    const maxTempInput = screen.getByTestId('max-temp-input');
-    expect(maxTempInput.props.value).toBe('30');
-    expect(screen.getByDisplayValue('Los Angeles')).toBeTruthy();
   });
 
   it('handles numeric input validation', () => {

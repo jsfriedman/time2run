@@ -35,23 +35,35 @@ describe('AlarmsList', () => {
     expect(screen.getByText('Good weather conditions')).toBeTruthy();
   });
 
-  it('shows empty state when no alarms are provided', () => {
-    render(<AlarmsList alarms={[]} />);
-
-    expect(screen.getByText('No upcoming alarms scheduled.')).toBeTruthy();
+  it('shows empty state when no alarms are provided and weatherChecked is true', () => {
+    render(<AlarmsList alarms={[]} weatherChecked={true} />);
+    expect(screen.getByText('There are no periods in the next day within your temperature preference.')).toBeTruthy();
     expect(screen.queryByTestId('alarms-heading')).toBeFalsy();
   });
 
-  it('shows empty state when alarms is null', () => {
-    render(<AlarmsList alarms={null as any} />);
-
-    expect(screen.getByText('No upcoming alarms scheduled.')).toBeTruthy();
+  it('does not show empty state when no alarms and weatherChecked is false', () => {
+    render(<AlarmsList alarms={[]} weatherChecked={false} />);
+    expect(screen.queryByText('There are no periods in the next day within your temperature preference.')).toBeFalsy();
   });
 
-  it('shows empty state when alarms is undefined', () => {
-    render(<AlarmsList alarms={undefined as any} />);
+  it('shows empty state when alarms is null and weatherChecked is true', () => {
+    render(<AlarmsList alarms={null as any} weatherChecked={true} />);
+    expect(screen.getByText('There are no periods in the next day within your temperature preference.')).toBeTruthy();
+  });
 
-    expect(screen.getByText('No upcoming alarms scheduled.')).toBeTruthy();
+  it('does not show empty state when alarms is null and weatherChecked is false', () => {
+    render(<AlarmsList alarms={null as any} weatherChecked={false} />);
+    expect(screen.queryByText('There are no periods in the next day within your temperature preference.')).toBeFalsy();
+  });
+
+  it('shows empty state when alarms is undefined and weatherChecked is true', () => {
+    render(<AlarmsList alarms={undefined as any} weatherChecked={true} />);
+    expect(screen.getByText('There are no periods in the next day within your temperature preference.')).toBeTruthy();
+  });
+
+  it('does not show empty state when alarms is undefined and weatherChecked is false', () => {
+    render(<AlarmsList alarms={undefined as any} weatherChecked={false} />);
+    expect(screen.queryByText('There are no periods in the next day within your temperature preference.')).toBeFalsy();
   });
 
   it('renders single alarm correctly', () => {

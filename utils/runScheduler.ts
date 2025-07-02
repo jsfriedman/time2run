@@ -6,7 +6,7 @@ export class RunScheduler {
   calculateOptimalRunTime(weatherData: WeatherData, preferences: UserPreferences): RunSchedule | null {
     // Merge with defaults to ensure all required fields are present
     const prefs = { ...DEFAULT_PREFERENCES, ...preferences };
-    const { maxTemperature, preparationTime, idealSleepHours, bufferTimeBeforeExceed } = prefs;
+    const { maxTemperature, preparationTime, idealSleepHours, bufferTimeBeforeExceed, preferredDefaultTime } = prefs;
 
     // Find the first hour where temperature exceeds max
     let temperatureExceedsTime: string | null = null;
@@ -17,9 +17,9 @@ export class RunScheduler {
       }
     }
 
-    // If all temperatures are above max, return null
+    // If all temperatures are below max, schedule at preferred default time
     if (!temperatureExceedsTime) {
-      return null;
+      return this.calculateScheduleAtPreferredTime(prefs, preferredDefaultTime, maxTemperature);
     }
 
     // Parse the time when temperature exceeds max
@@ -66,6 +66,46 @@ export class RunScheduler {
       bedTime,
       wakeTime,
       reason: `Weather will exceed ${maxTemperature}°F by ${this.formatTime(exceedHour, exceedMinute)}`
+    };
+  }
+
+  private calculateScheduleAtPreferredTime(prefs: UserPreferences, preferredTime: string, maxTemperature: number): RunSchedule {
+    const { preparationTime, idealSleepHours } = prefs;
+    
+    // Parse preferred time
+    const { hours: preferredHour, minutes: preferredMinute } = this.parseTime(preferredTime);
+    
+    // Check if preferred time would result in wake time before minimum
+    let wakeMinutes = preferredHour * 60 + preferredMinute - preparationTime;
+    if (wakeMinutes < 0) wakeMinutes += 24 * 60;
+    let wakeHour = Math.floor(wakeMinutes / 60);
+    let wakeMinute = wakeMinutes % 60;
+    
+    let optimalRunTime = preferredTime;
+    let reason = `All temperatures below ${maxTemperature}°F, using preferred time ${preferredTime}`;
+    
+    // If wake time would be before minimum, adjust to minimum wake time
+    if (wakeHour < this.MIN_WAKE_TIME) {
+      wakeHour = this.MIN_WAKE_TIME;
+      wakeMinute = 0;
+      optimalRunTime = this.formatTime(wakeHour + Math.floor(preparationTime / 60), preparationTime % 60);
+      reason = `All temperatures below ${maxTemperature}°F, adjusted to minimum wake time`;
+    }
+    
+    const wakeTime = this.formatTime(wakeHour, wakeMinute);
+
+    // Calculate bed time (idealSleepHours before wake time)
+    let bedMinutes = wakeHour * 60 + wakeMinute - idealSleepHours * 60;
+    if (bedMinutes < 0) bedMinutes += 24 * 60;
+    let bedHour = Math.floor(bedMinutes / 60);
+    let bedMinute = bedMinutes % 60;
+    const bedTime = this.formatTime(bedHour, bedMinute);
+
+    return {
+      optimalRunTime,
+      bedTime,
+      wakeTime,
+      reason
     };
   }
 

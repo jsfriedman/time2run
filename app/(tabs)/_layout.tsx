@@ -24,24 +24,9 @@ export default function TabLayout() {
           },
         })}
       >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Home',
-          }}
-        />
-        <Tabs.Screen
-          name="alarms"
-          options={{
-            title: 'Alarms',
-          }}
-        />
-        <Tabs.Screen
-          name="preferences"
-          options={{
-            title: 'Preferences',
-          }}
-        />
+        <Tabs.Screen name="index" options={{ title: 'Home' }} />
+        <Tabs.Screen name="alarms" options={{ title: 'Alarms' }} />
+        <Tabs.Screen name="preferences" options={{ title: 'Preferences' }} />
       </Tabs>
     </PreferencesProvider>
   );

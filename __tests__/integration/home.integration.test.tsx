@@ -61,4 +61,14 @@ describe('Home UI Integration', () => {
     // Check for preferences summary
     expect(screen.getByTestId('home-summary')).toBeTruthy();
   });
+
+  it('does not display (tabs) in the header', async () => {
+    render(
+      <PreferencesProvider>
+        <HomeScreen />
+      </PreferencesProvider>
+    );
+    // There should be no text containing (tabs)
+    expect(screen.queryByText(/\(tabs\)/i)).toBeNull();
+  });
 }); 

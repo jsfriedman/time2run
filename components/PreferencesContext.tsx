@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserPreferences, DEFAULT_PREFERENCES, RunSchedule } from '../types/preferences';
 import { RunScheduler } from '../utils/runScheduler';
 import { WeatherService } from '../services/weatherService';
+import { NotificationService } from '../services/notificationService';
 
 interface PreferencesContextType {
   preferences: UserPreferences;
@@ -21,6 +22,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const scheduler = React.useRef(new RunScheduler()).current;
   const weatherService = React.useRef(new WeatherService()).current;
+  const notificationService = React.useRef(new NotificationService()).current;
 
   React.useEffect(() => {
     (async () => {
@@ -31,11 +33,6 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setLoading(false);
     })();
   }, []);
-
-  React.useEffect(() => {
-    refreshAlarms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferences]);
 
   const setPreferences = (prefs: UserPreferences) => {
     setPreferencesState(prefs);
@@ -48,6 +45,9 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const weather = await weatherService.getWeatherForecast(preferences.location);
       const run = scheduler.calculateOptimalRunTime(weather, preferences);
       setAlarms(run ? [run] : []);
+      if (run) {
+        await notificationService.scheduleWakeUpAlarm(run);
+      }
     } catch (e) {
       setAlarms([]);
     }

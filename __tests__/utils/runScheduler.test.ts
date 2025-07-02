@@ -12,6 +12,7 @@ describe('RunScheduler', () => {
       idealSleepHours: 8,
       preferredRunDuration: 30, // minutes
       bufferTimeBeforeExceed: 90, // 1.5 hours
+      preferredDefaultTime: '07:00', // new field
       location: {
         latitude: 40.7128,
         longitude: -74.0060,
@@ -42,7 +43,94 @@ describe('RunScheduler', () => {
       expect(result?.reason).toBe('Weather will exceed 75°F by 09:00');
     });
 
-    it('should return null when no suitable time is found', () => {
+    it('should schedule at preferred default time when all temperatures are below max', () => {
+      const weatherData = {
+        hourly: [
+          { time: '2024-06-15T06:00:00', temperature: 65 },
+          { time: '2024-06-15T07:00:00', temperature: 68 },
+          { time: '2024-06-15T08:00:00', temperature: 72 },
+          { time: '2024-06-15T09:00:00', temperature: 70 },
+          { time: '2024-06-15T10:00:00', temperature: 73 }
+        ]
+      };
+
+      const result = scheduler.calculateOptimalRunTime(weatherData, mockPreferences);
+      
+      // All temps below 75°F, should schedule at preferred default time (07:00)
+      expect(result?.optimalRunTime).toBe('07:00');
+      expect(result?.wakeTime).toBe('06:45'); // 15 min before 07:00
+      expect(result?.bedTime).toBe('22:45'); // 8 hours before 06:45
+      expect(result?.reason).toBe('All temperatures below 75°F, using preferred time 07:00');
+    });
+
+    it('should schedule at preferred default time when max temperature is very high', () => {
+      const highTempPreferences = {
+        ...mockPreferences,
+        maxTemperature: 95
+      };
+
+      const weatherData = {
+        hourly: [
+          { time: '2024-06-15T06:00:00', temperature: 65 },
+          { time: '2024-06-15T07:00:00', temperature: 68 },
+          { time: '2024-06-15T08:00:00', temperature: 72 },
+          { time: '2024-06-15T09:00:00', temperature: 74 },
+          { time: '2024-06-15T10:00:00', temperature: 78 }
+        ]
+      };
+
+      const result = scheduler.calculateOptimalRunTime(weatherData, highTempPreferences);
+      
+      // All temps below 95°F, should schedule at preferred default time
+      expect(result?.optimalRunTime).toBe('07:00');
+      expect(result?.reason).toBe('All temperatures below 95°F, using preferred time 07:00');
+    });
+
+    it('should handle different preferred default times', () => {
+      const earlyBirdPreferences = {
+        ...mockPreferences,
+        preferredDefaultTime: '06:00'
+      };
+
+      const weatherData = {
+        hourly: [
+          { time: '2024-06-15T06:00:00', temperature: 65 },
+          { time: '2024-06-15T07:00:00', temperature: 68 },
+          { time: '2024-06-15T08:00:00', temperature: 72 }
+        ]
+      };
+
+      const result = scheduler.calculateOptimalRunTime(weatherData, earlyBirdPreferences);
+      
+      expect(result?.optimalRunTime).toBe('06:00');
+      expect(result?.wakeTime).toBe('05:45'); // 15 min before 06:00
+      expect(result?.reason).toBe('All temperatures below 75°F, using preferred time 06:00');
+    });
+
+    it('should respect minimum wake time even with early preferred time', () => {
+      const earlyBirdPreferences = {
+        ...mockPreferences,
+        preferredDefaultTime: '04:00', // Very early
+        preparationTime: 30
+      };
+
+      const weatherData = {
+        hourly: [
+          { time: '2024-06-15T06:00:00', temperature: 65 },
+          { time: '2024-06-15T07:00:00', temperature: 68 },
+          { time: '2024-06-15T08:00:00', temperature: 72 }
+        ]
+      };
+
+      const result = scheduler.calculateOptimalRunTime(weatherData, earlyBirdPreferences);
+      
+      // Should adjust to minimum wake time (5:00 AM)
+      expect(result?.optimalRunTime).toBe('05:30'); // 30 min after 05:00 wake time
+      expect(result?.wakeTime).toBe('05:00'); // Minimum wake time
+      expect(result?.reason).toBe('All temperatures below 75°F, adjusted to minimum wake time');
+    });
+
+    it('should return null when no suitable time is found due to temperature constraints', () => {
       const weatherData = {
         hourly: [
           { time: '2024-06-15T06:00:00', temperature: 80 },

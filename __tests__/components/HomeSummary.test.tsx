@@ -56,6 +56,7 @@ describe('HomeSummary', () => {
     expect(screen.getByText(`Buffer: ${DEFAULT_PREFERENCES.bufferTimeBeforeExceed} min`)).toBeTruthy();
     expect(screen.getByText(`Run Duration: ${DEFAULT_PREFERENCES.preferredRunDuration} min`)).toBeTruthy();
     expect(screen.getByText(`Location: ${DEFAULT_PREFERENCES.location.city} (${DEFAULT_PREFERENCES.location.latitude}, ${DEFAULT_PREFERENCES.location.longitude})`)).toBeTruthy();
+    expect(screen.getByText(`Preferred Default Time: ${DEFAULT_PREFERENCES.preferredDefaultTime}`)).toBeTruthy();
   });
 
   it('displays custom preferences correctly', () => {
@@ -66,6 +67,7 @@ describe('HomeSummary', () => {
       idealSleepHours: 8,
       preferredRunDuration: 45,
       bufferTimeBeforeExceed: 120,
+      preferredDefaultTime: '06:30',
     };
 
     render(
@@ -81,6 +83,7 @@ describe('HomeSummary', () => {
     expect(screen.getByText('Buffer: 120 min')).toBeTruthy();
     expect(screen.getByText('Run Duration: 45 min')).toBeTruthy();
     expect(screen.getByText('Location: New York (40.7128, -74.006)')).toBeTruthy();
+    expect(screen.getByText('Preferred Default Time: 06:30')).toBeTruthy();
   });
 
   it('handles next run with empty reason', () => {

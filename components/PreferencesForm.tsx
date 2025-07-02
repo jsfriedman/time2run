@@ -8,9 +8,10 @@ export interface PreferencesFormProps {
   initialPreferences: UserPreferences;
   onSave: (prefs: UserPreferences) => void | Promise<void>;
   testID?: string;
+  onChange?: (prefs: UserPreferences) => void;
 }
 
-export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPreferences, onSave, testID }) => {
+export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPreferences, onSave, testID, onChange }) => {
   const [prefs, setPrefs] = useState<UserPreferences>(initialPreferences || DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(false);
 
@@ -19,24 +20,34 @@ export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPrefere
   }, [initialPreferences]);
 
   const handleChange = (key: keyof UserPreferences, value: string) => {
-    setPrefs((prev) => ({
-      ...prev,
-      [key]: key === 'location'
-        ? { ...prev.location, city: value }
-        : key === 'maxTemperature' || key === 'preparationTime' || key === 'idealSleepHours' || key === 'preferredRunDuration' || key === 'bufferTimeBeforeExceed'
+    setPrefs((prev) => {
+      const updated = {
+        ...prev,
+        [key]: key === 'maxTemperature' || key === 'preparationTime' || key === 'idealSleepHours' || key === 'preferredRunDuration' || key === 'bufferTimeBeforeExceed'
           ? Number(value)
           : value,
-    }));
+      };
+      if (onChange) onChange(updated);
+      return updated;
+    });
   };
 
-  const handleLocationChange = (key: keyof UserPreferences['location'], value: string) => {
-    setPrefs((prev) => ({
-      ...prev,
-      location: {
-        ...prev.location,
-        [key]: key === 'latitude' || key === 'longitude' ? Number(value) : value,
-      },
-    }));
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((position) => {
+      setPrefs((prev) => {
+        const updated = {
+          ...prev,
+          location: {
+            ...prev.location,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          },
+        };
+        if (onChange) onChange(updated);
+        return updated;
+      });
+    });
   };
 
   const handleSave = async () => {
@@ -94,32 +105,20 @@ export const PreferencesForm: React.FC<PreferencesFormProps> = ({ initialPrefere
           keyboardType="numeric"
           style={styles.input}
         />
-        <Text style={styles.label}>Location (City)</Text>
+        <Text style={styles.label}>Preferred Default Run Time (HH:MM)</Text>
         <TextInput
-          testID="city-input"
-          accessibilityLabel="City"
-          value={prefs.location.city}
-          onChangeText={(v) => handleLocationChange('city', v)}
+          testID="preferred-default-time-input"
+          accessibilityLabel="Preferred Default Run Time"
+          value={prefs.preferredDefaultTime}
+          onChangeText={(v) => handleChange('preferredDefaultTime', v)}
+          keyboardType="default"
           style={styles.input}
         />
-        <Text style={styles.label}>Latitude</Text>
-        <TextInput
-          testID="latitude-input"
-          accessibilityLabel="Latitude"
-          value={prefs.location.latitude.toString()}
-          onChangeText={(v) => handleLocationChange('latitude', v)}
-          keyboardType="numeric"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Longitude</Text>
-        <TextInput
-          testID="longitude-input"
-          accessibilityLabel="Longitude"
-          value={prefs.location.longitude.toString()}
-          onChangeText={(v) => handleLocationChange('longitude', v)}
-          keyboardType="numeric"
-          style={styles.input}
-        />
+        <Text style={styles.label}>Coordinates</Text>
+        <Text testID="coordinates-field" style={styles.input} selectable>
+          {prefs.location.latitude}, {prefs.location.longitude}
+        </Text>
+        <Button title="Locate Me" onPress={handleLocateMe} />
         <Button
           title="Save"
           onPress={handleSave}

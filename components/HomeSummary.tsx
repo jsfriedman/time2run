@@ -29,6 +29,7 @@ export const HomeSummary: React.FC<HomeSummaryProps> = ({ nextRun, preferences }
       <Text>Buffer: {preferences.bufferTimeBeforeExceed} min</Text>
       <Text>Run Duration: {preferences.preferredRunDuration} min</Text>
       <Text>Location: {preferences.location.city} ({preferences.location.latitude}, {preferences.location.longitude})</Text>
+      <Text>Preferred Default Time: {preferences.preferredDefaultTime}</Text>
     </View>
   );
 };

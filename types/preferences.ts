@@ -10,6 +10,7 @@ export interface UserPreferences {
   idealSleepHours: number;
   preferredRunDuration: number; // minutes
   bufferTimeBeforeExceed: number; // minutes before temperature exceeds max
+  preferredDefaultTime: string; // HH:MM format for when all temperatures are valid
   location: Location;
 }
 
@@ -34,6 +35,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   idealSleepHours: 8,
   preferredRunDuration: 30,
   bufferTimeBeforeExceed: 90, // 1.5 hours default
+  preferredDefaultTime: '07:00', // 7:00 AM default
   location: {
     latitude: 40.7128,
     longitude: -74.0060,
